@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from PIL import Image
 import random
 import mysql.connector
 
@@ -8,6 +7,72 @@ conn = mysql.connector.connect(user='root', password='root',
                               host='127.0.0.1',
                               database='pharma')
 c = conn.cursor()
+
+
+
+# Function to create Doctors table
+def doctors_create_table():
+    c.execute('''CREATE TABLE IF NOT EXISTS Doctors(
+                    D_Name VARCHAR(50) NOT NULL,
+                    D_Specialization VARCHAR(50) NOT NULL,
+                    D_Email VARCHAR(50) PRIMARY KEY NOT NULL, 
+                    D_Number VARCHAR(50) NOT NULL 
+                    )''')
+    print('Doctors Table created successfully')
+
+# Function to add data to Doctors table
+def doctor_add_data(Dname, Dspec, Demail, Dnumber):
+    try:
+        c.execute(f"INSERT INTO Doctors (D_Name, D_Specialization, D_Email, D_Number) VALUES ('{Dname}', '{Dspec}', '{Demail}', '{Dnumber}')")
+        conn.commit()
+        print("Doctor added successfully.")
+    except mysql.connector.Error as err:
+        print("Error:", err)
+
+
+# Function to view all data in Doctors table
+def doctor_view_all_data():
+    try:
+        c.execute('SELECT * FROM Doctors')
+        doctor_data = c.fetchall()
+        return doctor_data
+    except mysql.connector.Error as err:
+        logging.error("Error fetching doctor data: %s", err)
+        return None
+
+
+
+
+# Function to create Appointments table
+def appointments_create_table():
+    c.execute('''CREATE TABLE IF NOT EXISTS Appointments(
+                    A_Date DATE NOT NULL,
+                    A_Doctor VARCHAR(50) NOT NULL,
+                    A_Patient VARCHAR(50) NOT NULL, 
+                    A_id INT PRIMARY KEY AUTO_INCREMENT
+                    )''')
+    print('Appointments Table created successfully')
+
+# Function to add data to Appointments table
+def appointment_add_data(Adate, Adoctor, Apatient):
+    try:
+        c.execute(f'INSERT INTO Appointments (A_Date, A_Doctor, A_Patient) VALUES ("{Adate}", "{Adoctor}", "{Apatient}")')
+        conn.commit()
+        print("Appointment added successfully.")
+    except mysql.connector.Error as err:
+        print("Error:", err)
+
+
+# Function to view all data in Appointments table
+def appointment_view_all_data():
+    try:
+        c.execute('SELECT * FROM Appointments')
+        appointment_data = c.fetchall()
+        return appointment_data
+    except mysql.connector.Error as err:
+        print("Error:", err)
+
+
 
 def cust_create_table():
     c.execute('''CREATE TABLE IF NOT EXISTS Customers(
@@ -111,7 +176,7 @@ def admin():
 
 
     st.title("Pharmacy Database Dashboard")
-    menu = ["Drugs", "Customers", "Orders"]
+    menu = ["Drugs", "Customers", "Orders", "Doctors", "Appointments"]
     choice = st.sidebar.selectbox("Menu", menu)
 
 
@@ -200,6 +265,52 @@ def admin():
             with st.expander("View All Order Data"):
                 order_clean_df = pd.DataFrame(order_result, columns=["Name", "Items","Qty" ,"ID"])
                 st.dataframe(order_clean_df)
+    # # doctors
+    elif choice == "Doctors":
+        menu = ["Add", "View"]
+        choice = st.sidebar.selectbox("Menu", menu)
+        if choice == "Add":
+            st.subheader("Add Doctor")
+            doctor_name = st.text_input("Doctor Name")
+            doctor_specialization = st.text_input("Specialization")
+            doctor_email = st.text_input("Email")
+            doctor_number = st.text_input("Phone Number")
+            if st.button("Add Doctor"):
+                doctor_add_data(doctor_name, doctor_specialization, doctor_email, doctor_number)
+                st.success("Doctor Added Successfully!")
+        elif choice == "View":
+            st.subheader("View Doctors")
+            doctor_result = doctor_view_all_data()
+            if doctor_result:
+                doctor_df = pd.DataFrame(doctor_result, columns=["Name", "Specialization", "Email", "Phone Number"])
+                st.dataframe(doctor_df)
+            else:
+                st.write("No doctors found.")
+    
+    
+    elif choice == "Appointments":
+        menu = ["Add", "View"]
+        choice = st.sidebar.selectbox("Menu", menu)
+        if choice == "Add":
+            st.subheader("Add Appointment")
+            appointment_date = st.date_input("Date")
+            appointment_doctor = st.text_input("Doctor Name")
+            appointment_patient = st.text_input("Patient Name")
+            if st.button("Add Appointment"):
+                appointment_add_data(appointment_date, appointment_doctor, appointment_patient)
+                st.success("Appointment Added Successfully!")
+
+        elif choice == "View":
+            st.subheader("View Appointments")
+            appointment_result = appointment_view_all_data()
+            print(appointment_result)  # Add this line to print appointment_result
+            if appointment_result:
+                appointment_df = pd.DataFrame(appointment_result, columns=["Date", "Doctor", "Patient", "Appointment ID"])
+                st.dataframe(appointment_df)
+            else:
+                st.write("No appointments found.")
+
+
 
 
 def getauthenicate(username, password):
@@ -269,6 +380,14 @@ def customer(username, password):
                 st.success("Order placed successfully!")
         else:
             st.write("No drugs available for purchase.")
+        # Appointment Booking
+        st.subheader("Book Appointment:")
+        appointment_date = st.date_input("Date")
+        appointment_doctor = st.text_input("Doctor Name")
+        appointment_patient = username  # Assuming patient name is the username
+        if st.button("Book Appointment"):
+            appointment_add_data(appointment_date, appointment_doctor, appointment_patient)
+            st.success("Appointment Booked Successfully!")
     else:
         st.write("Invalid username or password.")
 
@@ -279,6 +398,8 @@ if __name__ == '__main__':
     drug_create_table()
     cust_create_table()
     order_create_table()
+    doctors_create_table()
+    appointments_create_table()
 
     menu = ["Login", "SignUp","Admin"]
     choice = st.sidebar.selectbox("Menu", menu)
